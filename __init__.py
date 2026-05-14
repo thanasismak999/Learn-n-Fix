@@ -1,10 +1,10 @@
 bl_info = {
-    "name": "Learn&Fix",
+    "name": "TestLearnNFix",
     "author": "Athanasios Makridis",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (4, 0, 0),
     "location": "View3D > Header > Learn&Fix",
-    "description": "Smart educational workflow assistant.",
+    "description": "Optimized smart educational workflow assistant.",
     "category": "3D View",
 }
 
@@ -19,12 +19,8 @@ import bpy.utils.previews
 from bpy.app.handlers import persistent
 from mathutils import Vector
 
-# GLOBAL VARIABLES
-# =========================================================
 addon_start_time = 0.0
 
-# IMPORTS & LOGIC
-# =========================================================
 from .checks.check_poles import detect_poles
 from .checks.check_flipped import detect_flipped_normals
 from .checks.check_ngons import detect_ngons
@@ -100,21 +96,15 @@ YOUTUBE_URLS = {
 }
 
 def get_smart_explanation(issue, mode, count):
-    """
-    Returns context-aware advice based on Issue Type, Workflow Mode, and Error Count.
-    """
     why = "Causes issues."
     fix = "Fix manually."
-    
 
     if issue == 'FLIPPED':
         why = "Inside-out faces. Invisible in Game Engines." if mode == 'GAMES' else "Breaks shading and 3D printing."
         fix = "Edit Mode > Select All > Shift+N."
-
     elif issue == 'INCONSISTENT':
         why = "Confuses 3D printer slicers (Inside vs Outside)." if mode == 'PRINTING' else "Black shading artifacts."
         fix = "Select All > Shift+N."
-
     elif issue == 'POLES':
         if mode == 'ANIMATION':
             why = "Creates pinching when mesh deforms."
@@ -122,18 +112,15 @@ def get_smart_explanation(issue, mode, count):
         else:
             why = "Bad topology flow."
             fix = "Manual Retopology or Remesh Modifier."
-
     elif issue == 'NGONS':
         if mode == 'ANIMATION':
             why = "Unpredictable deformation during bending."
         else:
             why = "May cause concave shading errors."
-        
         if count > 50:
             fix = "Mass Error: Use 'Triangulate' Modifier."
         else:
             fix = "Select Face > Ctrl+T or Knife Tool (K)."
-
     elif issue == 'NONMANIFOLD':
         if mode == 'PRINTING':
             why = "CRITICAL: Object is not watertight. Print will fail."
@@ -141,7 +128,6 @@ def get_smart_explanation(issue, mode, count):
         else:
             why = "Impossible geometry."
             fix = "Clean Up > Non-Manifold."
-
     elif issue == 'HOLES':
         if mode == 'PRINTING':
             why = "Resin/Filament will leak. Must be closed."
@@ -149,45 +135,36 @@ def get_smart_explanation(issue, mode, count):
         else:
             why = "Open geometry."
             fix = "Select Edge Loop > F."
-
     elif issue == 'THINTRIS':
         why = "Bad physics collision." if mode == 'GAMES' else "Shading artifacts."
         if count > 100:
             fix = "Mass Error: Use 'Decimate' Modifier (Collapse)."
         else:
             fix = "Slide Vertices (GG) to merge."
-
     elif issue == 'ISOLATED':
         why = "Increases file size unnecessarily."
         fix = "Mesh > Clean Up > Delete Loose."
-
     elif issue == 'DUPLICATES':
         why = "Z-Fighting flicker." if mode == 'GAMES' else "Shading errors."
         if count > 50:
             fix = "Mass Error: Use 'Weld' Modifier (Non-Destructive)."
         else:
             fix = "Press M > By Distance."
-
     elif issue == 'SELFINTERSECT':
         why = "Impossible to 3D Print." if mode == 'PRINTING' else "Bad physics."
         fix = "Sculpt Mode > Smooth or 'Remesh' Modifier."
-
     elif issue == 'INTERNAL':
         why = "Slicer will print solid walls inside." if mode == 'PRINTING' else "Wasted polygons."
         fix = "Select All by Trait > Interior Faces > Delete."
-
     elif issue == 'OVERLAPPING_UV':
         why = "Lightmap baking will fail." if mode == 'GAMES' else "Texture glitches."
         fix = "UV > Pack Islands."
-
     elif issue == 'EDGEFLOW':
         why = "Bad reflections."
         fix = "Manual Retopology."
-
     elif issue == 'ORIGIN':
         why = "Rotation/Scaling will be offset."
         fix = "Object > Set Origin > Origin to Geometry."
-
     elif issue == 'TRANSFORMS':
         why = "Modifiers (Bevel/Array) will distort."
         fix = "Ctrl+A > Apply Scale."
@@ -238,9 +215,7 @@ def _update_issue_type(self, context):
 
 class MeshCheckerProperties(bpy.types.PropertyGroup):
     workflow_mode: bpy.props.EnumProperty(name="Usage Goal", items=[('SELECT', "Select a Workflow...", ""), ('PRINTING', "3D Printing", ""), ('ANIMATION', "Animation", ""), ('GAMES', "Game Asset", ""), ('CUSTOM', "Expert", "")], default='SELECT', update=update_workflow)
-    
     show_explanation: bpy.props.BoolProperty(name="Info", default=False, description="Show detailed explanation")
-
     auto_check_enabled: bpy.props.BoolProperty(name="Auto-Check", default=False)
     auto_check_threshold: bpy.props.IntProperty(name="Every X Moves", default=10, min=1, max=100)
     edit_operation_count: bpy.props.IntProperty(default=0)
@@ -344,10 +319,20 @@ def ensure_indices_for_issue(obj, props):
     for prop, f, code in CHECKS_MAPPING:
         if code == issue: func = f; break
     if func:
-        d = func(obj, props.thintris_threshold) if issue=='THINTRIS' else func(obj)
+        bm = bmesh.new()
+        if obj.mode == 'EDIT': bm = bmesh.from_edit_mesh(obj.data)
+        else: bm.from_mesh(obj.data)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+        
+        d = func(obj, bm, props.thintris_threshold) if issue=='THINTRIS' else func(obj, bm)
         data = d
         if d.get("indices") and isinstance(d["indices"], dict):
             data = {"indices": d["indices"].get("low_valence", []) + d["indices"].get("high_valence", [])}
+        
+        if obj.mode != 'EDIT': bm.free()
+
     if data.get("indices"): 
         for i in data["indices"]: item=props.current_indices.add(); item.value=i
     props.current_index = 0
@@ -378,13 +363,20 @@ class MESH_OT_RunChecks(bpy.types.Operator):
         obj = context.active_object; props = context.scene.mesh_checker_props; props.results.clear()
         if not obj or obj.type!='MESH': return {'CANCELLED'}
         props.is_internal_operation = True 
-        if obj.mode == 'EDIT': bmesh.update_edit_mesh(obj.data)
+        
+        bm = bmesh.new()
+        if obj.mode == 'EDIT': bm = bmesh.from_edit_mesh(obj.data)
+        else: bm.from_mesh(obj.data)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
         try: base=json.loads(props.baseline_stats)
         except: base={}
         curr=0; base_tot=0; first=None
         for prop, func, code in CHECKS_MAPPING:
             if getattr(props, prop):
-                d = func(obj, props.thintris_threshold) if code=='THINTRIS' else func(obj)
+                d = func(obj, bm, props.thintris_threshold) if code=='THINTRIS' else func(obj, bm)
                 cnt=0; has=False
                 if d.get("indices"): 
                     cnt = len(d["indices"].get("low_valence",[])+d["indices"].get("high_valence",[])) if isinstance(d["indices"],dict) else len(d["indices"]); has=True
@@ -396,10 +388,13 @@ class MESH_OT_RunChecks(bpy.types.Operator):
                     if base[code]>0: it.improvement=max(0.0, 1.0-(cnt/base[code]))
                     curr+=cnt; base_tot+=base[code]
                 elif code in base: base_tot+=base[code]
+        
         if first: props.issue_type=first
         if curr==0: props.baseline_stats="{}"; props.total_score=1.0
         else: props.baseline_stats=json.dumps(base); props.total_score=max(0.0,1.0-(curr/base_tot)) if base_tot>0 else 0.0
         props.current_indices.clear(); props.current_index=0
+        
+        if obj.mode != 'EDIT': bm.free()
         return {'FINISHED'}
 
 class MESH_OT_RefreshActive(bpy.types.Operator):
@@ -408,12 +403,19 @@ class MESH_OT_RefreshActive(bpy.types.Operator):
         obj = context.active_object; props = context.scene.mesh_checker_props
         active_type = props.issue_type
         props.is_internal_operation = True
-        if obj.mode == 'EDIT': bmesh.update_edit_mesh(obj.data)
+        
+        bm = bmesh.new()
+        if obj.mode == 'EDIT': bm = bmesh.from_edit_mesh(obj.data)
+        else: bm.from_mesh(obj.data)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
         func = None
         for p, f, c in CHECKS_MAPPING:
             if c == active_type: func = f; break
         if func:
-            d = func(obj, props.thintris_threshold) if active_type=='THINTRIS' else func(obj)
+            d = func(obj, bm, props.thintris_threshold) if active_type=='THINTRIS' else func(obj, bm)
             cnt = 0
             if d.get("indices"): cnt = len(d["indices"].get("low_valence",[])+d["indices"].get("high_valence",[])) if isinstance(d["indices"],dict) else len(d["indices"])
             elif d.get("status")=="error": cnt=1
@@ -424,7 +426,9 @@ class MESH_OT_RefreshActive(bpy.types.Operator):
                 except: base={}
                 if active_type in base and base[active_type]>0: item.improvement = max(0.0, 1.0-(cnt/base[active_type]))
                 if cnt == 0: self.report({'INFO'}, f"{ISSUE_DISPLAY_NAMES[active_type]} Fixed!")
+        
         props.current_indices.clear(); props.current_index = 0
+        if obj.mode != 'EDIT': bm.free()
         return {'FINISHED'}
 
 class MESH_OT_OpenSpecificDoc(bpy.types.Operator):
@@ -443,7 +447,6 @@ class MESH_OT_EduDialog(bpy.types.Operator):
     bl_idname = "mesh.edu_dialog"; bl_label = "Learn More"; issue_type: bpy.props.StringProperty()
     def execute(self, context): return {'FINISHED'}
     def draw(self, context):
-        # Fallback dialog (not really used now that we have the HUD)
         layout = self.layout
         layout.label(text="See HUD for details")
     def invoke(self, context, event): return context.window_manager.invoke_props_dialog(self, width=500)
@@ -467,12 +470,19 @@ class MESH_OT_NavIssue(bpy.types.Operator):
     def execute(self, context):
         props = context.scene.mesh_checker_props; obj = context.active_object
         props.is_internal_operation = True
-        if obj.mode == 'EDIT': bmesh.update_edit_mesh(obj.data)
+        
+        bm = bmesh.new()
+        if obj.mode == 'EDIT': bm = bmesh.from_edit_mesh(obj.data)
+        else: bm.from_mesh(obj.data)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
         active_type = props.issue_type; func = None
         for p, f, c in CHECKS_MAPPING:
             if c == active_type: func = f; break
         if func:
-            d = func(obj, props.thintris_threshold) if active_type=='THINTRIS' else func(obj)
+            d = func(obj, bm, props.thintris_threshold) if active_type=='THINTRIS' else func(obj, bm)
             new_indices = []
             if d.get("indices"): new_indices = d["indices"].get("low_valence", []) + d["indices"].get("high_valence", []) if isinstance(d["indices"], dict) else d["indices"]
             item = next((r for r in props.results if r.issue_type == active_type), None)
@@ -484,6 +494,8 @@ class MESH_OT_NavIssue(bpy.types.Operator):
             new_idx = (props.current_index + self.direction) % len(props.current_indices)
             props.current_index = new_idx
             visualize_current(context)
+        
+        if obj.mode != 'EDIT': bm.free()
         return {'FINISHED'}
 
 class MESH_OT_Show(bpy.types.Operator):
@@ -504,44 +516,27 @@ class MESH_OT_SelectAll(bpy.types.Operator):
         self.report({'INFO'}, f"Selected {len(all_indices)} {issue} elements.")
         return {'FINISHED'}
 
-
-# THE FLOATING HUD (PROPS DIALOG)
-# =========================================================
 class MESH_OT_OpenHUD(bpy.types.Operator):
-    """Opens the Learn & Fix Floating Panel"""
     bl_idname = "mesh.open_hud"
     bl_label = "Learn & Fix"
     bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=400)
-
+    def execute(self, context): return {'FINISHED'}
+    def invoke(self, context, event): return context.window_manager.invoke_props_dialog(self, width=400)
     def draw(self, context):
         layout = self.layout
         props = context.scene.mesh_checker_props
         mode = props.workflow_mode
-        
         header = layout.row()
         header.alignment = 'EXPAND'
-        
         icon_id = get_icon("learnfix_logo")
-        if icon_id:
-            header.label(text="", icon_value=icon_id)
-        else:
-            header.label(text="L&F", icon="SHADERFX")
-            
+        if icon_id: header.label(text="", icon_value=icon_id)
+        else: header.label(text="L&F", icon="SHADERFX")
         header.label(text="")
-        
         layout.separator()
-
         box = layout.box()
         box.label(text="Step 1: Choose Workflow", icon="CHECKBOX_HLT")
         box.row().prop(props, "workflow_mode", text="")
         if mode=='SELECT': return
-
         layout.separator()
         layout.label(text="Step 2: Detect Errors", icon="VIEWZOOM")
         if mode=='CUSTOM':
@@ -550,175 +545,96 @@ class MESH_OT_OpenHUD(bpy.types.Operator):
             b.label(text="Topology")
             if props.show_topology: 
                 c=b.column(align=True)
-                c.prop(props,"check_ngons")
-                c.prop(props,"check_poles")
-                c.prop(props,"check_thin_tris")
-                c.prop(props,"check_isolated")
-                c.prop(props,"check_edgeflow")
+                c.prop(props,"check_ngons"); c.prop(props,"check_poles"); c.prop(props,"check_thin_tris")
+                c.prop(props,"check_isolated"); c.prop(props,"check_edgeflow")
             b=layout.box()
             b.prop(props,"show_geometry",icon="TRIA_DOWN" if props.show_geometry else "TRIA_RIGHT", emboss=False)
             b.label(text="Geometry")
             if props.show_geometry: 
                 c=b.column(align=True)
-                c.prop(props,"check_duplicates")
-                c.prop(props,"check_nonmanifold")
-                c.prop(props,"check_selfintersect")
-                c.prop(props,"check_holes")
-                c.prop(props,"check_internalfaces")
+                c.prop(props,"check_duplicates"); c.prop(props,"check_nonmanifold")
+                c.prop(props,"check_selfintersect"); c.prop(props,"check_holes"); c.prop(props,"check_internalfaces")
             b=layout.box()
             b.prop(props,"show_normals",icon="TRIA_DOWN" if props.show_normals else "TRIA_RIGHT", emboss=False)
             b.label(text="Normals")
             if props.show_normals: 
                 c=b.column(align=True)
-                c.prop(props,"check_flipped")
-                c.prop(props,"check_inconsistent")
-                c.prop(props,"check_overlappinguv")
+                c.prop(props,"check_flipped"); c.prop(props,"check_inconsistent"); c.prop(props,"check_overlappinguv")
             b=layout.box()
             b.prop(props,"show_workflow",icon="TRIA_DOWN" if props.show_workflow else "TRIA_RIGHT", emboss=False)
             b.label(text="Transforms")
             if props.show_workflow: 
                 c=b.column(align=True)
-                c.prop(props,"check_transforms")
-                c.prop(props,"check_origin")
-
+                c.prop(props,"check_transforms"); c.prop(props,"check_origin")
         row=layout.row()
         row.scale_y=1.5; row.operator("mesh.run_checks", text="Check Mesh", icon="CHECKMARK")
-        
         layout.separator()
         row = layout.row(align=True)
         row.prop(props, "auto_check_enabled", toggle=True, text="Auto-Check")
-        if props.auto_check_enabled:
-             row.prop(props, "auto_check_threshold", text="Moves")
-        
+        if props.auto_check_enabled: row.prop(props, "auto_check_threshold", text="Moves")
         if len(props.results)>0:
-            layout.separator()
-            box=layout.box()
-            row=box.row()
-            row.label(text="Health:")
+            layout.separator(); box=layout.box(); row=box.row(); row.label(text="Health:")
             row.prop(props,"total_score",text=f"{int(props.total_score*100)}%",slider=True)
-            
-            col=box.column()
-            idx=0
-            active=None
+            col=box.column(); idx=0; active=None
             for i,r in enumerate(props.results):
-                if r.issue_type==props.issue_type: 
-                    idx=i+1
-                    active=r
-                    break
-            
-            nav=col.row(align=True)
-            nav.scale_y=1.2; nav.alignment='CENTER'
+                if r.issue_type==props.issue_type: idx=i+1; active=r; break
+            nav=col.row(align=True); nav.scale_y=1.2; nav.alignment='CENTER'
             nav.operator("mesh.nav_type",text="",icon="TRIA_LEFT").direction=-1
             lbl = f"{ISSUE_DISPLAY_NAMES.get(active.issue_type, active.issue_type)} ({idx}/{len(props.results)})" if active else "Select Error"
             nav.label(text=f"  {lbl}  ", icon="FILE_TEXT")
             nav.operator("mesh.nav_type",text="",icon="TRIA_RIGHT").direction=1
             col.separator()
-
             if active:
-                ibox=col.box()
-                
-                h_row = ibox.row()
-                h_row.label(text=f"{active.name} [{active.count}]")
+                ibox=col.box(); h_row = ibox.row(); h_row.label(text=f"{active.name} [{active.count}]")
                 h_row.operator("mesh.refresh_active", text="", icon="FILE_REFRESH")
-                
-                if active.improvement>0:
-                    ibox.prop(active,"improvement",text="Fixed",slider=True,emboss=False)
-                
-                r=ibox.row(align=True)
-                r.operator("mesh.nav_issue",text="Prev").direction=-1
-                r.operator("mesh.show_vis",text="Show")
-                r.operator("mesh.nav_issue",text="Next").direction=1
-                
+                if active.improvement>0: ibox.prop(active,"improvement",text="Fixed",slider=True,emboss=False)
+                r=ibox.row(align=True); r.operator("mesh.nav_issue",text="Prev").direction=-1
+                r.operator("mesh.show_vis",text="Show"); r.operator("mesh.nav_issue",text="Next").direction=1
                 ibox.operator("mesh.select_all_issues", text=f"Select All", icon="RESTRICT_SELECT_OFF")
-
-                info_row = ibox.row()
-                info_icon = "TRIA_DOWN" if props.show_explanation else "TRIA_RIGHT"
-                info_row.prop(props, "show_explanation", text="How to Fix & Tutorials", icon="INFO", toggle=True) 
-                
-
+                info_row = ibox.row(); info_row.prop(props, "show_explanation", text="How to Fix & Tutorials", icon="INFO", toggle=True) 
                 if props.show_explanation:
-                    
-                    info_box = ibox.box()
-                    
-                    pcoll = preview_collections.get("main")
-                    icon_name = active.issue_type
-                    
+                    info_box = ibox.box(); pcoll = preview_collections.get("main"); icon_name = active.issue_type
                     if pcoll and icon_name in pcoll:
-                        icon_val = pcoll[icon_name].icon_id
-                        row_icon = info_box.row()
-                        row_icon.alignment = 'CENTER'
-                        row_icon.template_icon(icon_value=icon_val, scale=8.0) 
-                        info_box.separator()
-
+                        icon_val = pcoll[icon_name].icon_id; row_icon = info_box.row()
+                        row_icon.alignment = 'CENTER'; row_icon.template_icon(icon_value=icon_val, scale=8.0); info_box.separator()
                     explanation = get_smart_explanation(active.issue_type, mode, active.count)
-                    
                     col = info_box.column()
-                    for line in explanation.split('\n'):
-                        col.label(text=line)
-                    
-                    info_box.separator()
-                    
-                    edu_row = info_box.row()
-                    edu_row.scale_y=1.3
-                    
+                    for line in explanation.split('\n'): col.label(text=line)
+                    info_box.separator(); edu_row = info_box.row(); edu_row.scale_y=1.3
                     op = edu_row.operator("wm.url_open", text="Tutorial", icon="URL")
                     op.url = YOUTUBE_URLS.get(active.issue_type, "https://youtube.com")
-                    
                     doc_op = edu_row.operator("mesh.open_specific_doc", text="Theory", icon="FILE_TEXT")
                     doc_op.issue_type = active.issue_type
-                
-        elif props.total_score==1.0 and mode!='SELECT':
-            layout.box().label(text="Perfect Score!", icon="CHECKMARK")
+        elif props.total_score==1.0 and mode!='SELECT': layout.box().label(text="Perfect Score!", icon="CHECKMARK")
 
-# HEADER ANIMATION LOGIC
-# =========================================================
 def redraw_header_timer():
-    if time.time() - addon_start_time > 10.0:
-        return None 
+    if time.time() - addon_start_time > 10.0: return None 
     for win in bpy.context.window_manager.windows:
         for area in win.screen.areas:
-            if area.type == 'VIEW_3D':
-                area.tag_redraw()
+            if area.type == 'VIEW_3D': area.tag_redraw()
     return 0.1
 
 def draw_header_button(self, context):
-    layout = self.layout
-    elapsed = time.time() - addon_start_time
-    is_flashing = False
+    layout = self.layout; elapsed = time.time() - addon_start_time; is_flashing = False
     if elapsed < 10.0:
-        if int(elapsed * 4) % 2 == 0:
-            layout.alert = True
-            is_flashing = True
-    
+        if int(elapsed * 4) % 2 == 0: layout.alert = True; is_flashing = True
     icon_id = get_icon("learnfix_logo")
-    if icon_id:
-        layout.operator("mesh.open_hud", text="Learn & Fix", icon_value=icon_id)
-    else:
-        layout.operator("mesh.open_hud", text="Learn & Fix", icon="HELP")
-        
+    if icon_id: layout.operator("mesh.open_hud", text="Learn & Fix", icon_value=icon_id)
+    else: layout.operator("mesh.open_hud", text="Learn & Fix", icon="HELP")
     if is_flashing: layout.alert = False
 
 classes = (MeshCheckerIndexItem, MeshCheckerResultItem, MeshCheckerProperties, MESH_OT_RunChecks, MESH_OT_RefreshActive, MESH_OT_NavType, MESH_OT_NavIssue, MESH_OT_Show, MESH_OT_SelectAll, MESH_OT_EduDialog, MESH_OT_OpenSpecificDoc, MESH_OT_OpenHUD)
 
 def register():
-    global addon_start_time
-    addon_start_time = time.time()
-    load_preview_icons()
+    global addon_start_time; addon_start_time = time.time(); load_preview_icons()
     for c in classes: bpy.utils.register_class(c)
     bpy.types.Scene.mesh_checker_props=bpy.props.PointerProperty(type=MeshCheckerProperties)
-    bpy.types.VIEW3D_HT_header.append(draw_header_button)
-    bpy.app.timers.register(redraw_header_timer, first_interval=0.1)
-    if on_depsgraph_update not in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update)
+    bpy.types.VIEW3D_HT_header.append(draw_header_button); bpy.app.timers.register(redraw_header_timer, first_interval=0.1)
+    if on_depsgraph_update not in bpy.app.handlers.depsgraph_update_post: bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update)
 
 def unregister():
-    if on_depsgraph_update in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.remove(on_depsgraph_update)
-    bpy.types.VIEW3D_HT_header.remove(draw_header_button)
-    unload_preview_icons()
-    del bpy.types.Scene.mesh_checker_props
+    if on_depsgraph_update in bpy.app.handlers.depsgraph_update_post: bpy.app.handlers.depsgraph_update_post.remove(on_depsgraph_update)
+    bpy.types.VIEW3D_HT_header.remove(draw_header_button); unload_preview_icons(); del bpy.types.Scene.mesh_checker_props
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
-
 if __name__ == "__main__": register()
-
