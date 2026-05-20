@@ -1,4 +1,4 @@
-# Learn & Fix: Automated Mesh Analysis Tool
+# Learn & Fix: An Interactive Topology Feedback System for Blender
 
 Learn & Fix is a Blender add-on developed to assist 3D modelers in identifying, navigating, and understanding topological errors. It functions as both a diagnostic tool and an educational resource, utilizing the BMesh API to detect geometric irregularities while providing context-sensitive documentation on how to resolve them.
 
