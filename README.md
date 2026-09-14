@@ -9,7 +9,7 @@ This software was developed as part of the article: Bridging the Learning Gap in
 Unlike standard mesh checkers that provide only a list of indices, this tool implements a "smart assistant" workflow. It continuously monitors modeling operations to provide real-time feedback and includes a "Learn" module that explains the theoretical background of detected errors (e.g., why N-Gons affect subdivision surfaces).
 
 ### Core Functionalities
-1.  **Automated Detection:** Scans for 15 distinct topological and geometric error types.
+1.  **Automated Detection:** Scans for distinct topological and geometric error types.
 2.  **Interactive Navigation:** Smoothly interpolates the 3D viewport camera to specific error locations (Vertices/Faces).
 3.  **Contextual Education:** Integrated "Explain & Fix" system providing diagrams and text explanations for every error type.
 4.  **Workflow Presets:** Pre-configured detection profiles for different industries (3D Printing, Game Dev, Animation).
