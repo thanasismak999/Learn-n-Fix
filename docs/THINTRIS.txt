@@ -1,0 +1,17 @@
+Thin Tris (The Mathematical Sliver)
+The Theory Mathematically, a triangle is the strongest shape because it is the only shape that is always planar (flat). However, not all triangles are created equal. A "Thin Tri" is a triangle where one angle is extremely acute (sharp), and the other two are very wide. It looks like a long, thin needle or a shard of glass.
+•	The Math: To calculate lighting, the computer needs to calculate the "Face Normal" (an arrow pointing perpendicularly out of the triangle).
+•	The Glitch: As a triangle gets thinner and thinner, its surface area approaches zero. When the area is near zero, the math used to calculate that "Normal" arrow becomes unstable. The computer struggles to figure out exactly which way that tiny shard is pointing.
+Real-Life Example: The Doorstop Imagine you need to hold a door open.
+•	A Good Triangle (Equilateral): This is a sturdy wooden doorstop. It has a wide base. It holds the weight easily.
+•	A Thin Tri (Sliver): Imagine a doorstop that is 1 meter long but only 1 millimeter thick (like a needle). If you try to jam this under a door, it will snap, bend, or slide out. It has no structural integrity. In a 3D mesh, a Thin Tri is that weak needle. It cannot support the shading "weight" of the surface.
+Why is it a problem?
+1.	Shading Artifacts (The Black Pinch): Because the "Normal" direction is unstable, the light rays hitting a Thin Tri often bounce off in the wrong direction. This creates a distinct, sharp black shadow or a "pinched" look on your model, even if the surface is supposed to be smooth.
+2.	Pixel Inefficiency (Game Engines): Graphics cards (GPUs) render images by processing pixels inside triangles. They are optimized for "fat" triangles. If a triangle is thinner than a pixel, the GPU has to do a lot of extra math to figure out if that pixel is technically "inside" or "outside" the sliver. A mesh full of Thin Tris renders slower than a mesh with healthy triangles.
+3.	Baking Errors: When you bake a Normal Map (transferring detail from high-poly to low-poly), Thin Tris often fail to capture the ray cast. You will end up with "rays missing geometry" errors, resulting in holes in your texture.
+How to manage them
+•	Vertex Merging: The easiest fix is usually to take the tip of the thin triangle and merge it into the nearest vertex (using "Target Weld" or "Collapse"). This deletes the sliver and expands the neighbor face.
+•	Regularization: In sculpting software (like ZBrush), using "Dynamesh" or "Remesh" automatically distributes the geometry into even, equilateral shapes, eliminating slivers.
+•	Spread the Vertices: If you can't delete it, move the vertices apart to give the triangle more "breathing room" (making it fatter).
+Practical Test Create a cylinder with 100 sides (very high density). Look at the center of the cap (the top circle). All 100 triangles meet at a single center point. Zoom in. The triangles near the center are incredibly thin. Now, try to apply a "Subdivision Surface" or a "Bevel" to that cap. You will immediately see a starburst pattern of ugly shading artifacts at the center. This is the computer telling you it hates those 100 thin slivers meeting at one point.
+
