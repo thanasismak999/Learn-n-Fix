@@ -1,13 +1,55 @@
 Self-Intersection (The Möbius Fail)
-The Theory Self-intersection occurs when the faces of a single mesh pass through other faces of the same mesh. Mathematically, a 3D object defines a volume: "Inside" and "Outside." When a mesh intersects itself, it inverts this logic. The computer can no longer calculate the volume because the "skin" of the object has crossed into its own internal organs. It’s like a snake swallowing its own tail, but instead of going into the mouth, the tail phases through the neck.
-Real-Life Example: The Tangled Garden Hose Imagine a long garden hose lying in the sun.
-•	Reality: If you coil the hose, the loops pile on top of each other. The rubber touches rubber, but the tube stays open.
-•	Self-Intersection: Imagine if the rubber of one loop ghosted through the rubber of the loop below it. Now, the water (or light rays/physics) hits a wall inside the tube where the geometries cross. The flow stops. The hose is now topologically "broken."
+The Theory Self-intersection occurs when the faces of a single mesh pass 
+through other faces of the same mesh. Mathematically, a 3D object defines 
+a volume: "Inside" and "Outside." When a mesh intersects itself, it 
+inverts this logic. The computer can no longer calculate the volume 
+because the "skin" of the object has crossed into its own internal organs. 
+It’s like a snake swallowing its own tail, but instead of going into the 
+mouth, the tail phases through the neck.
+
+Real-Life Example: The Tangled Garden Hose Imagine a long garden hose lying 
+in the sun.
+
+• Reality: If you coil the hose, the loops pile on top of each other. The 
+rubber touches rubber, but the tube stays open.
+• Self-Intersection: Imagine if the rubber of one loop ghosted through the 
+rubber of the loop below it. Now, the water (or light rays/physics) hits a 
+wall inside the tube where the geometries cross. The flow stops. The hose 
+is now topologically "broken."
+
 Why is it a problem?
-1.	Physics Explosions (Cloth Sim): This is the most common failure in fashion design or character capes. If you run a cloth simulation and the mesh is self-intersecting at the start, the physics engine sees infinite pressure at that point. The dress or cape will likely vibrate violently or explode off the character in Frame 1.
-2.	3D Printing Failure: A 3D printer needs a watertight shell. It traces the outline of the mesh. If the mesh crosses itself, the printer gets confused about what is "solid plastic" and what is "empty air." It will often print a mess of spaghetti or fail to slice the file entirely.
-3.	Subsurface Scattering (The "Black Line"): If you are rendering skin (like inside a nostril or an ear), light is supposed to glow through. If the mesh clips into itself, the renderer creates a shadow inside the skin. You get a visible black artifact or a hard line where the light should be soft and pink.
+1. Physics Explosions (Cloth Sim): This is the most common failure in 
+fashion design or character capes. If you run a cloth simulation and the 
+mesh is self-intersecting at the start, the physics engine sees infinite 
+pressure at that point. The dress or cape will likely vibrate violently 
+or explode off the character in Frame 1.
+
+2. 3D Printing Failure: A 3D printer needs a watertight shell. It traces 
+the outline of the mesh. If the mesh crosses itself, the printer gets 
+confused about what is "solid plastic" and what is "empty air." It will 
+often print a mess of spaghetti or fail to slice the file entirely.
+
+3. Subsurface Scattering (The "Black Line"): If you are rendering skin 
+(like inside a nostril or an ear), light is supposed to glow through. 
+If the mesh clips into itself, the renderer creates a shadow inside the 
+skin. You get a visible black artifact or a hard line where the light 
+should be soft and pink.
+
 How to manage them
-•	"Self-Collision" Distance: In simulation settings (Blender/Marvelous Designer), turn on "Self-Collision." This forces the computer to calculate a force field around every face of the cloth so it repels itself rather than passing through.
-•	The Inside-Out Check: Periodically switch to "Wireframe" or "X-Ray" mode to check tight creases (like the corner of the mouth, eyelids, or between fingers). These are the #1 spots for hidden self-intersections.
-Practical Test Take a donut shape (Torus). Twist it 180 degrees so it looks like a figure-8. Keep twisting until the loops pass through each other. Now, try to apply a "Solidify" modifier (to give it thickness). You will see the geometry spike and shatter at the crossover point. The algorithm cannot calculate "thickness" when the surface direction is inverted.
+
+• "Self-Collision" Distance: In simulation settings 
+(Blender/Marvelous Designer), turn on "Self-Collision." This forces the 
+computer to calculate a force field around every face of the cloth so 
+it repels itself rather than passing through.
+
+• The Inside-Out Check: Periodically switch to "Wireframe" or "X-Ray" 
+mode to check tight creases (like the corner of the mouth, eyelids, or 
+between fingers). These are the #1 spots for hidden self-intersections.
+
+Practical Test Take a donut shape (Torus). 
+
+Twist it 180 degrees so it looks like a figure-8. Keep twisting until 
+the loops pass through each other. Now, try to apply a "Solidify" 
+modifier (to give it thickness). You will see the geometry spike and 
+shatter at the crossover point. The algorithm cannot calculate 
+"thickness" when the surface direction is inverted.
