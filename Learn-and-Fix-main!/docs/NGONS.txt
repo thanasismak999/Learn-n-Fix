@@ -1,0 +1,17 @@
+N-Gons (The Polygon with Too Many Secrets)
+The Theory An "N-Gon" is a polygon with more than 4 sides (5, 6, 100, etc.). Here is the secret: N-Gons do not exist. Your graphics card (GPU) can only render triangles. It literally cannot process a square or a pentagon. When you model a Quad (4 sides), the computer secretly cuts it into 2 triangles. When you model an N-Gon (e.g., 5 sides), the computer must guess how to cut it into 3 triangles.
+•	Analytic Failure: A computer is a logic machine. If you give it a 5-sided shape, there are multiple ways to slice it. Since you didn't tell it which way to slice, the software picks a random pattern. This makes the geometry unstable.
+Real-Life Example: The Table with 5 Legs Imagine you are building a table.
+•	Triangle (3 legs): Perfectly stable. Even on uneven ground, it never wobbles (a tripod).
+•	Quad (4 legs): Stable on a flat floor. Predictable.
+•	N-Gon (5+ legs): Imagine a table with 5 legs of slightly different lengths. It is impossible for all 5 to touch the ground at the same time. The table will rock back and forth. In 3D, this "wobble" is the shading artifact. The surface doesn't know which vertices to align with, so it warps.
+Why is it a problem?
+1.	Deformation (The "Pop"): If you animate an N-Gon (like on a character's knee), the internal triangles will flip and snap as the knee bends. The skin will look like it is popping or tearing because the computer is recalculating the slice of every frame.
+2.	Concave Shapes (The "Pac-Man" Glitch): If you have an N-Gon shaped like a Pac-Man (a circle with a mouth), the computer might accidentally connect the top lip to the bottom lip with a hidden triangle, sealing the mouth shut with an invisible wall.
+3.	Subdivision Failure: The mathematical algorithm for smoothing (Catmull-Clark) works by dividing every face into smaller Quads. It essentially gets "confused" by N-Gons, creating a distinct pucker or lump in the mesh that looks like a pinch.
+How to manage them
+•	The "Knife" Tool: Be the boss. Don't let the computer guess. Use the Knife tool (K) to manually cut the N-Gon into Quads and Triangles yourself.
+•	Planar is Okay: If the surface is perfectly flat (like the top of a metal bolt) and will never bend, N-Gons are actually fine. The "wobbly table" problem doesn't happen if the floor is perfectly flat. This is why CAD models and Hard Surface models use them often.
+•	The perimeter rule: If you have a cylinder cap (which is a giant N-Gon), inset the face once (I key) to create a ring of quads around the edge. This protects the shading on the curved edge from the chaotic N-gon in the center.
+Practical Test Create a Cylinder with a cap of 32 vertices (a 32-sided N-Gon). Bend the cylinder using a modifier. Look at the cap. You will see weird dark shadows shooting across the face. Now, delete the cap and fill it with a "Grid Fill" (making it all Quads). Bend it again. The shadows disappear. The math is clean.
+
