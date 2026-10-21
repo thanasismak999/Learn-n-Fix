@@ -57,5 +57,5 @@ Click Check Mesh to execute the diagnostic suite. The add-on displays categorise
 
 3. Error Navigation & Remediation
 Next / Previous: Cycles through the list of identified errors.
-Show: Smoothly interpolates (`slerp`) the camera to frame the specific defect in the 3D Viewport.
+Show: Smoothly interpolates (using `slerp` & `lerp`) the camera to frame the specific defect in the 3D Viewport.
 Explain & Fix: Opens the modal dialogue containing visual diagrams, theoretical explanations, and manual repair instructions.
