@@ -1,64 +1,61 @@
 # Learn & Fix: An Interactive Topology Feedback System for Blender
 
-Learn & Fix is a Blender add-on developed to assist 3D modelers in identifying, navigating, and understanding topological errors. It functions as both a diagnostic tool and an educational resource, utilizing the BMesh API to detect geometric irregularities while providing context-sensitive documentation on how to resolve them.
+Learn & Fix is an open-source Blender add-on that helps novice 3D modellers identify, navigate, and understand topological errors. It functions as both a real-time diagnostic tool and an educational scaffolding system, utilising Blender's `bmesh` API and spatial Bounding Volume Hierarchy (BVH) trees to detect geometric irregularities while providing context-sensitive theoretical documentation and remediation guidance. This software artefact was developed as part of the research paper:
 
-This software was developed as part of the article: Bridging the Learning Gap in 3D Modelling: Design of an Interactive Topology Feedback System for Blender.
+Bridging the Learning Gap in 3D Modelling: Design of an Interactive Topology Feedback System for Blender
 
-## Overview
+---
 
-Unlike standard mesh checkers that provide only a list of indices, this tool implements a "smart assistant" workflow. It continuously monitors modeling operations to provide real-time feedback and includes a "Learn" module that explains the theoretical background of detected errors (e.g., why N-Gons affect subdivision surfaces).
+Overview
 
-### Core Functionalities
-1.  **Automated Detection:** Scans for distinct topological and geometric error types.
-2.  **Interactive Navigation:** Smoothly interpolates the 3D viewport camera to specific error locations (Vertices/Faces).
-3.  **Contextual Education:** Integrated "Explain & Fix" system providing diagrams and text explanations for every error type.
-4.  **Workflow Presets:** Pre-configured detection profiles for different industries (3D Printing, Game Dev, Animation).
+Unlike standard mesh validation toolkits that output raw vertex indices, Learn & Fix implements an active interventional learning workflow. It continuously monitors viewport editing operations and delivers event-driven feedback, complemented by an integrated "Explain & Fix" module that grounds error explanations in 3D computer graphics theory (e.g., how N-gons disrupt subdivision surface algorithms).
 
-## Features
+# Core Functionalities
+1. Automated Error Detection: Real-time and event-driven scanning across four fundamental diagnostic categories.
+2. Smooth Camera Navigation: Automated 3D Viewport camera framing utilising Spherical Linear Interpolation (`slerp`) and Linear Interpolation (`lerp`)  to isolate and highlight detected geometric defects without disorienting the user.
+3. Contextual Pedagogical Guidance: An integrated "Explain & Fix" modal dialogue offering visual diagrams, theoretical context, and user-executed step-by-step repair strategies.
+4. Tailored Workflow Presets: Industry-aligned diagnostic profiles (3D Printing, Game Assets, Animation, Expert) that automatically filter irrelevant rules.
+5. Onboarding Visual Assistance: A dedicated Viewport Initiator Button embedded in the top header ribbon to resolve initial Sidebar (N-panel) discoverability friction.
 
-### Supported Error Checks
-The detection system covers four primary categories:
+---
 
-* **Topology:** N-Gons (>4 verts), Poles (N/E-Poles with curvature filtering), Thin/Degenerate Triangles, Edge Flow disruptions.
-* **Geometry:** Non-Manifold edges, Open Holes, Internal Faces, Self-Intersections, Isolated Vertices, Duplicate Vertices.
-* **Surface:** Flipped Normals, Inconsistent Normals, Overlapping UVs.
-* **Object Data:** Unapplied Transforms (Scale/Rotation), Origin Offsets.
+ Technical Specifications & Diagnostic Checks
 
-### Technical Architecture
-* **Language:** Python 3.10+
-* **API:** Blender Python API (`bpy`, `bmesh`)
-* **Structure:** Modular design with separated logic (detection scripts) and presentation (UI/operators).
-* **Event System:** Uses `bpy.app.handlers` to monitor dependency graph updates, triggering analysis only after significant geometry changes.
+# Supported Diagnostic Checks
+The rule-based detection engine executes four core algorithms structured as an instructional scaffold:
+* Unapplied Transforms (Object-Level Preparation): Evaluates object matrices to detect unapplied Scale (1.0) or Rotation (0) that cause non-uniform modifier behaviour.
+* Zero-Area Faces (Basic Structural Integrity): Iterates over BMesh faces to identify degenerate surfaces below numerical precision thresholds (Area < 1e-8^2).
+* Self-Intersecting Geometry (Basic Structural Integrity): Constructs spatial Bounding Volume Hierarchy (BVH) trees to evaluate face-to-face mesh intersections using `bmesh.ops.intersect_faces`.
+* N-Gons (Topology Optimisation): Flags polygonal faces containing more than four vertices (X > 4) to prevent shading artefacts and deformation issues.
 
-## Installation
+# Technical Architecture
+* Environment: Python 3.10+
+* Core APIs: Blender Python API (`bpy`, `bmesh`, `mathutils`)
+* Design Pattern: Modular architecture separating core diagnostic algorithms (`bmesh` loops, BVH spatial trees) from UI presentation (`bpy.types.Panel`, modal dialogue operators).
+* Event System: Employs `bpy.app.handlers` for event-driven dependency graph monitoring, supplemented by an optional periodic Auto-Check operator (every 10 viewport actions).
 
-1.  Download the latest release (`.zip`).
-2.  Open Blender (Version 3.0 or newer).
-3.  Navigate to **Edit > Preferences > Add-ons**.
-4.  Click **Install...** and select the downloaded zip file.
-5.  Enable the checkbox next to **"3D View: Learn & Fix"**.
-6.  The interface will appear in the Sidebar (N-Panel) under the "Learn&Fix" tab.
+---
 
-## Usage Guide
+ Installation
 
-### 1. Configuration
-Select a **Workflow Mode** from the main panel (e.g., "3D Printing"). This automatically enables the relevant error checks and disables irrelevant ones (e.g., ignoring Edge Flow for print-ready models).
+1. Download the latest release package (`.zip`).
+2. Launch Blender (Version 3.0 or newer).
+3. Navigate to Edit > Preferences > Add-ons.
+4. Click Install... and select the downloaded `.zip` file.
+5. Enable the checkbox next to "3D View: Learn & Fix".
+6. Open the 3D Viewport Sidebar by pressing `N` and locate the "Learn & Fix" tab (or click the flashing Viewport Initiator Button in the top header).
 
-### 2. Analysis
-Click **Check Mesh** to run the detection algorithms. The add-on will display a health percentage and a categorized list of found errors.
+---
 
-### 3. Navigation
-* **Next/Prev:** Cycles through the list of errors.
-* **Show:** Snaps the view to the current error.
-* **Explain (?):** Opens the documentation popup for the current error type.
+Usage Guide
 
-## Project Structure
+1. Workflow Selection
+Select a Workflow Mode from the main panel (3D Printing, Game Assets, Animation, Expert). The add-on dynamically filters active diagnostic checks to match your target production pipeline.
 
-* `__init__.py`: Registry and core operator logic.
-* `checks/`: Directory containing individual detection modules (e.g., `check_ngons.py`).
-* `docs/`: Rich Text Format files used for the internal documentation system.
-* `icons/`: UI assets.
+2. Mesh Analysis
+Click Check Mesh to execute the diagnostic suite. The add-on displays categorised error logs alongside a health summary.
 
-## License
-
-This project is open-source and available under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for more information.
+3. Error Navigation & Remediation
+Next / Previous: Cycles through the list of identified errors.
+Show: Smoothly interpolates (`slerp`) the camera to frame the specific defect in the 3D Viewport.
+Explain & Fix: Opens the modal dialogue containing visual diagrams, theoretical explanations, and manual repair instructions.
