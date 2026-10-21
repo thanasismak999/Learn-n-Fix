@@ -7,7 +7,6 @@ from mathutils.bvhtree import BVHTree
 
 
 def detect_unapplied_transforms(obj):
-    """ Εντοπίζει αν το αντικείμενο έχει unapplied scale ή rotation. """
     if obj is None or obj.type != 'MESH':
         return {"description": "No mesh found", "indices": [], "status": "no_mesh"}
 
